@@ -6,6 +6,8 @@ import Layout from './components/Layout';
 import Login from './pages/Login';
 import Home from './pages/Home';
 import Products from './pages/Products';
+import Orders from './pages/Orders';
+import Merchants from './pages/Merchants';
 
 const qc = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 30_000 } } });
 
@@ -20,8 +22,8 @@ export default function App() {
               <Route path="/"         element={<Home />} />
               <Route path="/products" element={<Products />} />
               {/* صفحات قادمة */}
-              <Route path="/orders"        element={<div className="p-8 text-gray-400 text-center mt-20">قادمًا — صفحة الطلبات</div>} />
-              <Route path="/merchants"     element={<div className="p-8 text-gray-400 text-center mt-20">قادمًا — صفحة التجار</div>} />
+              <Route path="/orders"        element={<Orders />} />
+              <Route path="/merchants"     element={<Merchants />} />
               <Route path="/withdrawals"   element={<div className="p-8 text-gray-400 text-center mt-20">قادمًا — صفحة السحوبات</div>} />
               <Route path="/categories"    element={<div className="p-8 text-gray-400 text-center mt-20">قادمًا — صفحة الفئات</div>} />
               <Route path="/promos"        element={<div className="p-8 text-gray-400 text-center mt-20">قادمًا — صفحة الأكواد</div>} />
