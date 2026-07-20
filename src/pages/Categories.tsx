@@ -20,32 +20,10 @@ import { CSS } from '@dnd-kit/utilities';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Plus, Pencil, Trash2, X, Eye, EyeOff, Grid, GripVertical,
-  RefreshCw, CheckCircle, AlertCircle
+  RefreshCw, CheckCircle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../api';
-
-// ─── أيقونات (مطابقة لنسخة التطبيق) ─────────────────────────────
-const ICONS = [
-  { key: 'grid-outline', label: 'عام', emoji: '📦' },
-  { key: 'phone-portrait-outline', label: 'إلكترونيات', emoji: '📱' },
-  { key: 'home-outline', label: 'منزل', emoji: '🏠' },
-  { key: 'shirt-outline', label: 'ملابس', emoji: '👕' },
-  { key: 'rose-outline', label: 'اكسسوارات', emoji: '💍' },
-  { key: 'book-outline', label: 'كتب', emoji: '📚' },
-  { key: 'bicycle-outline', label: 'رياضة', emoji: '🏋️' },
-  { key: 'flower-outline', label: 'عطور', emoji: '🌸' },
-  { key: 'nutrition-outline', label: 'غذاء', emoji: '🥗' },
-  { key: 'construct-outline', label: 'أدوات', emoji: '🔧' },
-  { key: 'sparkles-outline', label: 'تجميل', emoji: '✨' },
-  { key: 'car-outline', label: 'سيارات', emoji: '🚗' },
-  { key: 'game-controller-outline', label: 'ألعاب', emoji: '🎮' },
-  { key: 'paw-outline', label: 'حيوانات', emoji: '🐾' },
-  { key: 'briefcase-outline', label: 'مكتب', emoji: '💼' },
-  { key: 'laptop-outline', label: 'كمبيوتر', emoji: '💻' },
-];
-
-const getEmoji = (key: string) => ICONS.find(i => i.key === key)?.emoji || '📦';
 
 // ─── أنواع البيانات ──────────────────────────────────────────────
 type Category = {
@@ -99,16 +77,9 @@ const SortableCategory = ({ category, onEdit, onDelete, onToggle }: SortableCate
           <GripVertical size={18} />
         </div>
 
-        {/* الأيقونة والاسم */}
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div
-            className={`w-10 h-10 rounded-xl flex items-center justify-center text-2xl flex-shrink-0 ${
-              category.isActive ? 'bg-primary/10' : 'bg-gray-100'
-            }`}
-          >
-            {getEmoji(category.icon)}
-          </div>
-          <div className="text-right flex-1 min-w-0">
+        {/* الاسم والترتيب */}
+        <div className="flex-1 min-w-0">
+          <div className="text-right">
             <p className={`font-bold truncate ${category.isActive ? 'text-gray-800' : 'text-gray-400'}`}>
               {category.name}
             </p>
@@ -120,14 +91,14 @@ const SortableCategory = ({ category, onEdit, onDelete, onToggle }: SortableCate
         <div className="flex items-center gap-1.5 flex-shrink-0">
           <button
             onClick={() => onToggle(category)}
-            className={`px-2.5 py-1.5 rounded-xl text-[10px] font-bold transition ${
+            className={`px-2.5 py-1.5 rounded-xl text-[10px] font-bold transition flex items-center gap-1 ${
               category.isActive
                 ? 'bg-green-100 text-green-700 hover:bg-green-200'
                 : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
             }`}
           >
             {category.isActive ? <Eye size={12} /> : <EyeOff size={12} />}
-            <span className="mr-1">{category.isActive ? 'نشط' : 'مخفي'}</span>
+            <span>{category.isActive ? 'نشط' : 'مخفي'}</span>
           </button>
           <button
             onClick={() => onEdit(category)}
@@ -152,7 +123,7 @@ export default function Categories() {
   const qc = useQueryClient();
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState<Category | null>(null);
-  const [form, setForm] = useState({ name: '', icon: 'grid-outline' });
+  const [form, setForm] = useState({ name: '' });
   const [localCategories, setLocalCategories] = useState<Category[]>([]);
   const [isSavingOrder, setIsSavingOrder] = useState(false);
 
@@ -267,13 +238,13 @@ export default function Categories() {
   // ─── دوال المودال ──────────────────────────────────────────────
   const openAdd = () => {
     setEditItem(null);
-    setForm({ name: '', icon: 'grid-outline' });
+    setForm({ name: '' });
     setShowModal(true);
   };
 
   const openEdit = (cat: Category) => {
     setEditItem(cat);
-    setForm({ name: cat.name, icon: cat.icon || 'grid-outline' });
+    setForm({ name: cat.name });
     setShowModal(true);
   };
 
@@ -292,7 +263,7 @@ export default function Categories() {
       : -1;
     const body = {
       name: form.name.trim(),
-      icon: form.icon || 'grid-outline',
+      icon: 'grid-outline',
       sortOrder: editItem ? editItem.sortOrder : maxOrder + 1,
       isActive: editItem ? editItem.isActive : true,
     };
@@ -435,29 +406,6 @@ export default function Categories() {
                   placeholder="مثال: إلكترونيات"
                   className="w-full px-4 py-2.5 rounded-xl border border-gray-200 outline-none focus:border-primary text-sm text-right"
                 />
-              </div>
-
-              {/* الأيقونة */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-600 mb-2 text-right">
-                  الأيقونة
-                </label>
-                <div className="grid grid-cols-4 gap-2">
-                  {ICONS.map((ico) => (
-                    <button
-                      key={ico.key}
-                      onClick={() => setForm((f) => ({ ...f, icon: ico.key }))}
-                      className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all ${
-                        form.icon === ico.key
-                          ? 'border-primary bg-primary/5'
-                          : 'border-gray-100 hover:border-gray-300'
-                      }`}
-                    >
-                      <span className="text-2xl">{ico.emoji}</span>
-                      <span className="text-xs text-gray-500">{ico.label}</span>
-                    </button>
-                  ))}
-                </div>
               </div>
 
               {/* تنبيه الترتيب عند الإضافة */}
