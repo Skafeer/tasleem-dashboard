@@ -1,5 +1,6 @@
 // src/pages/Merchants.tsx
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom'; // ✅ إضافة useNavigate
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Search, Pencil, Trash2, Copy, X, Eye, EyeOff, User, Phone, MapPin,
@@ -81,6 +82,7 @@ const FilterOption = ({ active, label, onClick }: any) => (
 
 export default function Merchants() {
   const qc = useQueryClient();
+  const navigate = useNavigate(); // ✅ تعريف useNavigate
 
   // ── الحالات المحلية ────────────────────────────────────────────
   const [search, setSearch] = useState('');
@@ -408,7 +410,8 @@ export default function Merchants() {
             return (
               <div
                 key={u.id}
-                className={`bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden transition-all hover:shadow-md ${
+                onClick={() => navigate(`/merchants/${u.id}`)} // ✅ التنقل لصفحة التفاصيل
+                className={`bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden transition-all hover:shadow-md cursor-pointer ${
                   isExpanded ? 'ring-2 ring-primary ring-offset-2' : ''
                 }`}
               >
@@ -425,7 +428,7 @@ export default function Merchants() {
                         <div className="flex items-center gap-2">
                           <p className="font-bold text-gray-800 text-base">{u.storeName}</p>
                           <button
-                            onClick={() => copyText(u.storeName, 'اسم المتجر')}
+                            onClick={(e) => { e.stopPropagation(); copyText(u.storeName, 'اسم المتجر'); }}
                             className="p-0.5 text-gray-400 hover:text-primary transition"
                           >
                             <Copy size={12} />
@@ -436,7 +439,7 @@ export default function Merchants() {
                             #{u.merchantId || u.id}
                           </span>
                           <button
-                            onClick={() => copyText(String(u.merchantId || u.id), 'رقم التاجر')}
+                            onClick={(e) => { e.stopPropagation(); copyText(String(u.merchantId || u.id), 'رقم التاجر'); }}
                             className="p-0.5 text-gray-400 hover:text-primary transition"
                           >
                             <Copy size={10} />
@@ -469,7 +472,7 @@ export default function Merchants() {
                       <span className="font-mono font-semibold text-gray-700">{u.phone || '—'}</span>
                       {u.phone && (
                         <button
-                          onClick={() => copyText(u.phone, 'رقم الهاتف')}
+                          onClick={(e) => { e.stopPropagation(); copyText(u.phone, 'رقم الهاتف'); }}
                           className="p-1 text-gray-400 hover:text-primary transition"
                         >
                           <Copy size={12} />
@@ -517,19 +520,19 @@ export default function Merchants() {
                 {/* ─── أزرار الإجراءات ──────────────────────────── */}
                 <div className="p-3 flex items-center gap-2 border-t border-gray-100 bg-white">
                   <button
-                    onClick={() => copyAllMerchantInfo(u)}
+                    onClick={(e) => { e.stopPropagation(); copyAllMerchantInfo(u); }}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs font-bold hover:bg-gray-200 transition flex-1 justify-center"
                   >
                     <Copy size={13} /> نسخ الكل
                   </button>
                   <button
-                    onClick={() => openEdit(u)}
+                    onClick={(e) => { e.stopPropagation(); openEdit(u); }}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-bold hover:bg-primary/20 transition flex-1 justify-center"
                   >
                     <Pencil size={13} /> تعديل
                   </button>
                   <button
-                    onClick={() => confirmDelete(u)}
+                    onClick={(e) => { e.stopPropagation(); confirmDelete(u); }}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 text-red-500 text-xs font-bold hover:bg-red-100 transition flex-1 justify-center"
                   >
                     <Trash2 size={13} /> حذف

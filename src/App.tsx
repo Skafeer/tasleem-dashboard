@@ -8,6 +8,7 @@ import Home from './pages/Home';
 import Products from './pages/Products';
 import Orders from './pages/Orders';
 import Merchants from './pages/Merchants';
+import MerchantDetails from './pages/MerchantDetails';
 import Withdrawals from './pages/Withdrawals';
 import Categories from './pages/Categories';
 import Promos from './pages/Promos';
@@ -24,9 +25,9 @@ export default function App() {
             <Route element={<Layout />}>
               <Route path="/"         element={<Home />} />
               <Route path="/products" element={<Products />} />
-              {/* صفحات قادمة */}
               <Route path="/orders"        element={<Orders />} />
               <Route path="/merchants"     element={<Merchants />} />
+              <Route path="/merchants/:id" element={<MerchantDetails />} /> 
               <Route path="/withdrawals"   element={<Withdrawals />} />
               <Route path="/categories"    element={<Categories />} />
               <Route path="/promos"        element={<Promos />} />
