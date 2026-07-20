@@ -60,7 +60,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           {/* الشعار - استخدم الصورة بدلاً من الحرف */}
           <div className="flex items-center gap-3 flex-row-reverse">
             <img
-              src="public/Tasleem.png"
+              src="/Tasleem.png"
               alt="تسليم"
               className="w-10 h-10 rounded-xl object-contain"
             />
