@@ -16,7 +16,6 @@ import {
                     { to: '/banners',       label: 'البنرات',          icon: Image },
                       { to: '/notifications', label: 'الإشعارات',        icon: Bell },
                         { to: '/support',       label: 'الدعم الفني',      icon: MessageSquare },
-                          { to: '/stats',         label: 'الإحصائيات',       icon: BarChart3 },
                           ];
 
                           export default function Sidebar() {

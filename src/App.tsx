@@ -38,7 +38,6 @@ export default function App() {
               <Route path="/banners"       element={<Banners />} />
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/support"       element={<Support />} />
-              <Route path="/stats"         element={<div className="p-8 text-gray-400 text-center mt-20">قادمًا — صفحة الإحصائيات</div>} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
