@@ -3,7 +3,7 @@ import { useState, useRef, ChangeEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Plus, Pencil, Trash2, Upload, Search, Eye, EyeOff, Image, X, FileUp,
-  Star, StarOff, Link, ExternalLink, RefreshCw
+  Star, StarOff
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Papa from 'papaparse';
@@ -39,12 +39,13 @@ export default function Products() {
   const [csvLoading, setCsvLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'form' | 'csv'>('form');
 
-  // ─── جلب البيانات ──────────────────────────────────────────────
+  // ─── جلب البيانات مع الترتيب من الأحدث إلى الأقدم ──────────
   const { data: products = [], isLoading } = useQuery({
     queryKey: ['products'],
     queryFn: async () => {
       const { data } = await api.get('/api/products');
-      return data as any[];
+      // ✅ ترتيب تنازلي حسب id (الأحدث أولاً)
+      return data.sort((a: any, b: any) => b.id - a.id);
     },
   });
 
