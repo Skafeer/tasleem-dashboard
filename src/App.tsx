@@ -13,7 +13,8 @@ import MerchantDetails from './pages/MerchantDetails';
 import Withdrawals from './pages/Withdrawals';
 import Categories from './pages/Categories';
 import Promos from './pages/Promos';
-import Banners from './pages/Banners'; // ✅ استيراد المكون الجديد
+import Banners from './pages/Banners';
+import Notifications from './pages/Notifications'; 
 
 const qc = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 30_000 } } });
 
@@ -33,8 +34,8 @@ export default function App() {
               <Route path="/withdrawals"   element={<Withdrawals />} />
               <Route path="/categories"    element={<Categories />} />
               <Route path="/promos"        element={<Promos />} />
-              <Route path="/banners"       element={<Banners />} /> {/* ✅ استبدال العنصر المؤقت */}
-              <Route path="/notifications" element={<div className="p-8 text-gray-400 text-center mt-20">قادمًا — صفحة الإشعارات</div>} />
+              <Route path="/banners"       element={<Banners />} />
+              <Route path="/notifications" element={<Notifications />} /> 
               <Route path="/support"       element={<div className="p-8 text-gray-400 text-center mt-20">قادمًا — صفحة الدعم</div>} />
               <Route path="/stats"         element={<div className="p-8 text-gray-400 text-center mt-20">قادمًا — صفحة الإحصائيات</div>} />
             </Route>
