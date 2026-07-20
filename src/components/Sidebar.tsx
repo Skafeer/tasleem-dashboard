@@ -1,3 +1,4 @@
+// src/components/Sidebar.tsx
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import {
@@ -30,6 +31,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     if (window.innerWidth < 768) {
       onClose();
     }
+  };
+
+  const handleLogout = () => {
+    if (window.innerWidth < 768) onClose();
+    logout();
   };
 
   return (
@@ -82,7 +88,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
         {/* User info */}
         <div className="px-4 py-3 mx-3 mt-3 bg-primary/5 rounded-2xl border border-primary/10">
-          <p className="text-right text-sm font-bold text-gray-700 truncate">{user?.storeName}</p>
+          <p className="text-right text-sm font-bold text-gray-700 truncate">{user?.storeName || 'المستخدم'}</p>
           <p className="text-right text-xs text-primary font-semibold">أدمن</p>
         </div>
 
@@ -111,10 +117,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         {/* Logout */}
         <div className="p-3 border-t border-gray-100">
           <button
-            onClick={() => {
-              if (window.innerWidth < 768) onClose();
-              logout();
-            }}
+            onClick={handleLogout}
             className="w-full flex items-center gap-3 flex-row-reverse px-4 py-2.5 rounded-xl text-sm font-semibold text-red-500 hover:bg-red-50 transition-all"
           >
             <LogOut size={18} />
