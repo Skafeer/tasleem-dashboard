@@ -57,11 +57,13 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             <X size={24} className="text-gray-500" />
           </button>
 
-          {/* الشعار */}
+          {/* الشعار - استخدم الصورة بدلاً من الحرف */}
           <div className="flex items-center gap-3 flex-row-reverse">
-            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center flex-shrink-0">
-              <span className="text-white font-black text-lg">ت</span>
-            </div>
+            <img
+              src="/Tasleem.png"
+              alt="تسليم"
+              className="w-10 h-10 rounded-xl object-contain"
+            />
             <div className="text-right">
               <p className="font-black text-gray-800 text-lg leading-none">تسليم</p>
               <p className="text-xs text-gray-400 mt-0.5">لوحة الإدارة</p>
