@@ -1,10 +1,10 @@
 // src/pages/Home.tsx
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Package, ShoppingBag, Users, Wallet, TrendingUp, Clock,
   CheckCircle, XCircle, AlertCircle, Truck, DollarSign,
   Percent, Calendar, BarChart3, Award, Store, CreditCard,
-  Gift, HeartHandshake, LucideIcon
+  Gift, RefreshCw, Tag, ShoppingCart
 } from 'lucide-react';
 import api from '../api';
 
@@ -31,7 +31,7 @@ const KpiCard = ({
   bg,
   sub,
 }: {
-  icon: LucideIcon;
+  icon: any;
   label: string;
   value: string | number;
   color: string;
@@ -41,7 +41,7 @@ const KpiCard = ({
   <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
     <div className="flex items-start justify-between flex-row-reverse">
       <div className={`w-11 h-11 ${bg} rounded-xl flex items-center justify-center`}>
-        <Icon size={22} className={`text-${color}`} style={{ color }} />
+        <Icon size={22} style={{ color }} />
       </div>
       <div className="text-right">
         <p className="text-2xl font-black text-gray-800">{value}</p>
@@ -52,7 +52,7 @@ const KpiCard = ({
   </div>
 );
 
-// ── مكون شريط التقدم البسيط ──
+// ── مكون شريط التقدم ──
 const BarRow = ({
   label,
   count,
@@ -82,8 +82,10 @@ const BarRow = ({
 };
 
 export default function Home() {
+  const qc = useQueryClient();
+
   // ── جلب البيانات ──
-  const { data: stats, isLoading, error } = useQuery({
+  const { data: stats, isLoading, error, isFetching, refetch } = useQuery({
     queryKey: ['stats'],
     queryFn: async () => {
       const { data } = await api.get('/api/admin/stats-data');
@@ -94,10 +96,15 @@ export default function Home() {
     staleTime: 30000,
   });
 
+  const handleRefresh = () => {
+    qc.invalidateQueries({ queryKey: ['stats'] });
+    refetch();
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" style={{ borderColor: COLORS.primary }} />
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2" style={{ borderColor: COLORS.primary }} />
       </div>
     );
   }
@@ -109,8 +116,8 @@ export default function Home() {
         <p className="text-lg font-bold text-gray-700 mt-4">تعذر تحميل الإحصائيات</p>
         <p className="text-sm text-gray-500">تحقق من الاتصال بالسيرفر</p>
         <button
-          onClick={() => window.location.reload()}
-          className="mt-4 px-6 py-2 bg-primary text-white rounded-xl text-sm font-bold hover:opacity-90 transition"
+          onClick={handleRefresh}
+          className="mt-4 px-6 py-2 text-white rounded-xl text-sm font-bold hover:opacity-90 transition"
           style={{ backgroundColor: COLORS.primary }}
         >
           إعادة المحاولة
@@ -119,31 +126,75 @@ export default function Home() {
     );
   }
 
+  // ══════════════════════════════════════════════════════════════
   // ── استخراج البيانات ──
+  // ══════════════════════════════════════════════════════════════
   const orders = stats.orders || [];
   const users = stats.users || [];
   const products = stats.products || [];
   const withdrawals = stats.withdrawals || [];
 
-  // ── حسابات الطلبات ──
-  const allOrders = orders;
-  const delivered = allOrders.filter((o: any) => o.status === 'delivered');
-  const cancelled = allOrders.filter((o: any) => o.status === 'cancelled');
-  const returned = allOrders.filter((o: any) => o.status === 'returned');
-  const postponed = allOrders.filter((o: any) => o.status === 'postponed');
-  const activeOrders = allOrders.filter((o: any) =>
-    ['processing', 'shipping'].includes(o.status)
+  const allOrders = orders as any[];
+
+  // ══════════════════════════════════════════════════════════════
+  // ── تصنيف الطلبات ──
+  // ══════════════════════════════════════════════════════════════
+  const delivered = allOrders.filter((o) => o.status === 'delivered');
+  const cancelled = allOrders.filter((o) => o.status === 'cancelled');
+  const returned = allOrders.filter((o) => o.status === 'returned');
+  const postponed = allOrders.filter((o) => o.status === 'postponed');
+  const activeOrders = allOrders.filter((o) =>
+    ['processing', 'shipping', 'preparing', 'pending'].includes(o.status)
   );
-  const pendingOrders = allOrders.filter((o: any) =>
+  const pendingOrders = allOrders.filter((o) =>
     ['pending', 'processing', 'preparing', 'shipping'].includes(o.status)
   ).length;
 
-  const totalRevenue = delivered.reduce((s: number, o: any) => s + (o.totalAmount || 0), 0);
-  const totalProfit = delivered.reduce((s: number, o: any) => s + (o.companyProfit || 0), 0);
-  const totalShipping = delivered.reduce((s: number, o: any) => s + (o.shippingCost || 0), 0);
-  const deliveryRate = allOrders.length > 0 ? Math.round((delivered.length / allOrders.length) * 100) : 0;
+  // ══════════════════════════════════════════════════════════════
+  // ── الإيرادات (من الطلبات المسلَّمة فقط) ──
+  // ══════════════════════════════════════════════════════════════
+  // ✅ صافي المنتجات = totalAmount - shippingCost (بدون توصيل)
+  const netProductsRevenue = delivered.reduce(
+    (s, o) => s + ((o.totalAmount || 0) - (o.shippingCost || 0)),
+    0
+  );
+  // ✅ رسوم التوصيل
+  const totalShipping = delivered.reduce((s, o) => s + (o.shippingCost || 0), 0);
+  // ✅ إجمالي ما دفعه العملاء
+  const totalCollected = delivered.reduce((s, o) => s + (o.totalAmount || 0), 0);
+  // ✅ الخصومات المُمنوحة (من الأكواد)
+  const totalPromoDiscounts = delivered.reduce((s, o) => s + (o.promoDiscount || 0), 0);
 
+  // ══════════════════════════════════════════════════════════════
+  // ── الأرباح (منفصلة) ──
+  // ══════════════════════════════════════════════════════════════
+  // ✅ ربح التجار
+  const totalMerchantProfit = delivered.reduce((s, o) => s + (o.totalProfit || 0), 0);
+  // ✅ ربح الشركة
+  const totalCompanyProfit = delivered.reduce((s, o) => s + (o.companyProfit || 0), 0);
+  // ✅ إجمالي الأرباح (تاجر + شركة)
+  const totalProfitCombined = totalMerchantProfit + totalCompanyProfit;
+
+  // ══════════════════════════════════════════════════════════════
+  // ── مؤشرات الطلبات ──
+  // ══════════════════════════════════════════════════════════════
+  // ✅ نسبة التسليم (من الطلبات المنتهية فقط: مسلّم + ملغي + مرتجع)
+  const finishedOrders = delivered.length + cancelled.length + returned.length;
+  const deliveryRate = finishedOrders > 0
+    ? Math.round((delivered.length / finishedOrders) * 100)
+    : 0;
+  // ✅ نسبة الإلغاء
+  const cancelRate = finishedOrders > 0
+    ? Math.round(((cancelled.length + returned.length) / finishedOrders) * 100)
+    : 0;
+  // ✅ متوسط قيمة الطلب
+  const avgOrderValue = delivered.length > 0
+    ? Math.round(totalCollected / delivered.length)
+    : 0;
+
+  // ══════════════════════════════════════════════════════════════
   // ── التجار ──
+  // ══════════════════════════════════════════════════════════════
   const merchants = users.filter((u: any) => u.role === 'merchant');
   const totalBalances = merchants.reduce((s: number, u: any) => s + (u.balance || 0), 0);
   const totalPendingBalances = merchants.reduce((s: number, u: any) => s + (u.pendingBalance || 0), 0);
@@ -164,7 +215,7 @@ export default function Home() {
     merchantOrders[o.merchantId].count++;
     if (o.status === 'delivered') {
       merchantOrders[o.merchantId].revenue += (o.totalAmount || 0) - (o.shippingCost || 0);
-      merchantOrders[o.merchantId].profit += (o.companyProfit || 0);
+      merchantOrders[o.merchantId].profit += (o.totalProfit || 0);
     }
   });
   const topMerchants = Object.values(merchantOrders)
@@ -172,19 +223,25 @@ export default function Home() {
     .slice(0, 5);
   const maxMerchantCount = topMerchants[0]?.count || 1;
 
+  // ══════════════════════════════════════════════════════════════
   // ── المنتجات ──
+  // ══════════════════════════════════════════════════════════════
   const activeProducts = products.filter((p: any) => p.stock > 0);
   const outOfStock = products.filter((p: any) => p.stock === 0);
   const lowStock = products.filter((p: any) => p.stock > 0 && p.stock <= 5);
+
+  // ✅ قيمة المخزون = تكلفة الشركة
   const totalStockValue = products.reduce(
-    (s: number, p: any) => s + ((p.companyWholesalePrice || 0) * p.stock),
+    (s: number, p: any) => s + ((p.companyWholesalePrice || 0) * (p.stock || 0)),
     0
   );
-  const potentialRevenue = products.reduce(
-    (s: number, p: any) => s + ((p.wholesalePrice || 0) * p.stock),
+  // ✅ الإيراد المحتمل = سعر البيع المقترح × المخزون
+  const potentialSalesRevenue = products.reduce(
+    (s: number, p: any) => s + ((p.suggestedPrice || p.wholesalePrice || 0) * (p.stock || 0)),
     0
   );
-  const potentialProfit = potentialRevenue - totalStockValue;
+  // ✅ الربح المحتمل = الإيراد المقترح - تكلفة الشركة
+  const potentialProfit = potentialSalesRevenue - totalStockValue;
 
   // أكثر 5 منتجات مبيعاً
   const productSales: Record<number, { name: string; count: number; revenue: number }> = {};
@@ -207,7 +264,9 @@ export default function Home() {
     .slice(0, 5);
   const maxProductCount = topProducts[0]?.count || 1;
 
+  // ══════════════════════════════════════════════════════════════
   // ── السحوبات ──
+  // ══════════════════════════════════════════════════════════════
   const pendingW = withdrawals.filter((w: any) => w.status === 'pending');
   const approvedW = withdrawals.filter((w: any) => w.status === 'approved');
   const paidW = withdrawals.filter((w: any) => w.status === 'paid');
@@ -217,9 +276,10 @@ export default function Home() {
     (s: number, w: any) => s + (w.amount || 0),
     0
   );
-  const totalWithdrawn = paidW.reduce((s: number, w: any) => s + (w.amount || 0), 0);
 
+  // ══════════════════════════════════════════════════════════════
   // ── إحصائيات سريعة ──
+  // ══════════════════════════════════════════════════════════════
   const quickStats = [
     {
       label: 'إجمالي الطلبات',
@@ -227,6 +287,7 @@ export default function Home() {
       icon: ShoppingBag,
       color: COLORS.info,
       bg: 'bg-blue-50',
+      sub: `${delivered.length} مسلّم`,
     },
     {
       label: 'طلبات نشطة',
@@ -234,6 +295,7 @@ export default function Home() {
       icon: Clock,
       color: COLORS.warning,
       bg: 'bg-amber-50',
+      sub: 'قيد التنفيذ',
     },
     {
       label: 'نسبة التسليم',
@@ -241,6 +303,7 @@ export default function Home() {
       icon: CheckCircle,
       color: COLORS.success,
       bg: 'bg-green-50',
+      sub: `إلغاء: ${cancelRate}%`,
     },
     {
       label: 'التجار المسجلين',
@@ -255,6 +318,7 @@ export default function Home() {
       icon: Package,
       color: COLORS.primary,
       bg: 'bg-teal-50',
+      sub: `${activeProducts.length} متوفر`,
     },
     {
       label: 'سحوبات معلقة',
@@ -262,24 +326,20 @@ export default function Home() {
       icon: Wallet,
       color: COLORS.danger,
       bg: 'bg-red-50',
+      sub: `${fmt(pendingAmount)} د.ع`,
     },
   ];
 
+  // ══════════════════════════════════════════════════════════════
   // ── بطاقات الإيرادات والأرباح ──
+  // ══════════════════════════════════════════════════════════════
   const revenueCards = [
     {
-      label: 'إجمالي الإيرادات',
-      value: `${fmt(totalRevenue)} د.ع`,
+      label: 'إيراد المنتجات',
+      value: `${fmt(netProductsRevenue)} د.ع`,
       icon: DollarSign,
       color: COLORS.success,
       bg: 'bg-green-50',
-    },
-    {
-      label: 'أرباح الشركة',
-      value: `${fmt(totalProfit)} د.ع`,
-      icon: TrendingUp,
-      color: COLORS.primary,
-      bg: 'bg-teal-50',
     },
     {
       label: 'رسوم التوصيل',
@@ -289,15 +349,58 @@ export default function Home() {
       bg: 'bg-blue-50',
     },
     {
+      label: 'الخصومات المُمنوحة',
+      value: `${fmt(totalPromoDiscounts)} د.ع`,
+      icon: Tag,
+      color: COLORS.danger,
+      bg: 'bg-red-50',
+    },
+    {
+      label: 'متوسط قيمة الطلب',
+      value: `${fmt(avgOrderValue)} د.ع`,
+      icon: ShoppingCart,
+      color: COLORS.secondary,
+      bg: 'bg-amber-50',
+    },
+  ];
+
+  // بطاقات الأرباح (منفصلة)
+  const profitCards = [
+    {
+      label: 'إجمالي الأرباح',
+      value: `${fmt(totalProfitCombined)} د.ع`,
+      icon: TrendingUp,
+      color: COLORS.primary,
+      bg: 'bg-teal-50',
+    },
+    {
+      label: 'أرباح التجار',
+      value: `${fmt(totalMerchantProfit)} د.ع`,
+      icon: Users,
+      color: COLORS.purple,
+      bg: 'bg-purple-50',
+    },
+    {
+      label: 'أرباح الشركة',
+      value: `${fmt(totalCompanyProfit)} د.ع`,
+      icon: DollarSign,
+      color: COLORS.success,
+      bg: 'bg-green-50',
+    },
+    {
       label: 'هامش الربح',
-      value: totalRevenue > 0 ? `${Math.round((totalProfit / totalRevenue) * 100)}%` : '0%',
+      value: netProductsRevenue > 0
+        ? `${Math.round((totalProfitCombined / netProductsRevenue) * 100)}%`
+        : '0%',
       icon: Percent,
       color: COLORS.warning,
       bg: 'bg-amber-50',
     },
   ];
 
-  // ── حالة الطلبات ──
+  // ══════════════════════════════════════════════════════════════
+  // ── توزيع الطلبات ──
+  // ══════════════════════════════════════════════════════════════
   const orderStatuses = [
     { label: 'مسلّم', count: delivered.length, color: COLORS.success },
     { label: 'نشط', count: activeOrders.length, color: COLORS.info },
@@ -305,12 +408,11 @@ export default function Home() {
     { label: 'مرتجع', count: returned.length, color: COLORS.warning },
     { label: 'مؤجل', count: postponed.length, color: COLORS.purple },
   ];
-  const maxOrderStatus = Math.max(
-    ...orderStatuses.map((s) => s.count),
-    1
-  );
+  const maxOrderStatus = Math.max(...orderStatuses.map((s) => s.count), 1);
 
+  // ══════════════════════════════════════════════════════════════
   // ── إحصائيات المنتجات ──
+  // ══════════════════════════════════════════════════════════════
   const productStats = [
     { label: 'إجمالي المنتجات', value: products.length, icon: Package, color: COLORS.primary, bg: 'bg-teal-50' },
     { label: 'متوفر بالمخزون', value: activeProducts.length, icon: CheckCircle, color: COLORS.success, bg: 'bg-green-50' },
@@ -318,7 +420,9 @@ export default function Home() {
     { label: 'نفذ من المخزون', value: outOfStock.length, icon: XCircle, color: COLORS.danger, bg: 'bg-red-50' },
   ];
 
+  // ══════════════════════════════════════════════════════════════
   // ── إحصائيات السحوبات ──
+  // ══════════════════════════════════════════════════════════════
   const withdrawalStats = [
     { label: 'معلق', count: pendingW.length, amount: pendingW.reduce((s: number, w: any) => s + (w.amount || 0), 0), color: COLORS.warning, icon: Clock },
     { label: 'مقبول', count: approvedW.length, amount: approvedW.reduce((s: number, w: any) => s + (w.amount || 0), 0), color: COLORS.info, icon: CheckCircle },
@@ -328,13 +432,24 @@ export default function Home() {
 
   return (
     <div className="p-8 bg-gray-50 min-h-screen" dir="rtl">
-      {/* العنوان */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-black text-gray-800">لوحة التحكم</h1>
-        <p className="text-gray-500 mt-1 text-sm">نظرة عامة على أداء منصة تسليم</p>
+
+      {/* ─── الهيدر ─── */}
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+        <div className="text-right">
+          <h1 className="text-2xl font-black text-gray-800">لوحة التحكم</h1>
+          <p className="text-gray-500 mt-1 text-sm">نظرة عامة على أداء منصة تسليم</p>
+        </div>
+        <button
+          onClick={handleRefresh}
+          disabled={isFetching}
+          className="flex items-center gap-2 bg-white border border-gray-200 text-gray-600 px-4 py-2 rounded-xl text-sm font-bold hover:bg-gray-50 transition disabled:opacity-60"
+        >
+          <RefreshCw size={16} className={isFetching ? 'animate-spin' : ''} />
+          تحديث
+        </button>
       </div>
 
-      {/* البطاقات السريعة */}
+      {/* ─── البطاقات السريعة ─── */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-6">
         {quickStats.map((stat) => (
           <KpiCard
@@ -344,15 +459,16 @@ export default function Home() {
             value={stat.value}
             color={stat.color}
             bg={stat.bg}
+            sub={stat.sub}
           />
         ))}
       </div>
 
-      {/* الإيرادات والأرباح */}
+      {/* ─── الإيرادات ─── */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
         <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2 justify-end">
           <DollarSign size={20} className="text-green-500" />
-          الإيرادات والأرباح
+          الإيرادات
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {revenueCards.map((card) => (
@@ -368,9 +484,39 @@ export default function Home() {
             </div>
           ))}
         </div>
+        <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap justify-center gap-6">
+          <div className="text-center">
+            <p className="text-lg font-bold" style={{ color: COLORS.primary }}>
+              {fmt(totalCollected)} د.ع
+            </p>
+            <p className="text-xs text-gray-500">إجمالي المُحصَّل</p>
+          </div>
+        </div>
       </div>
 
-      {/* توزيع الطلبات حسب الحالة */}
+      {/* ─── الأرباح ─── */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+        <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2 justify-end">
+          <TrendingUp size={20} className="text-teal-600" />
+          الأرباح
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {profitCards.map((card) => (
+            <div
+              key={card.label}
+              className="bg-gray-50 rounded-xl p-4 text-center border border-gray-100"
+            >
+              <div className={`w-10 h-10 ${card.bg} rounded-xl flex items-center justify-center mx-auto mb-2`}>
+                <card.icon size={20} style={{ color: card.color }} />
+              </div>
+              <p className="text-lg font-bold text-gray-800">{card.value}</p>
+              <p className="text-xs text-gray-500">{card.label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ─── توزيع الطلبات ─── */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
         <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2 justify-end">
           <BarChart3 size={20} className="text-blue-500" />
@@ -387,15 +533,23 @@ export default function Home() {
             />
           ))}
         </div>
-        <div className="mt-4 pt-4 border-t border-gray-100 flex justify-end items-center gap-2">
-          <CheckCircle size={16} className="text-green-500" />
-          <span className="text-sm text-gray-600">
-            نسبة التسليم: <span className="font-bold text-green-600">{deliveryRate}%</span>
-          </span>
+        <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap justify-center gap-8">
+          <div className="flex items-center gap-2">
+            <CheckCircle size={16} className="text-green-500" />
+            <span className="text-sm text-gray-600">
+              نسبة التسليم: <span className="font-bold text-green-600">{deliveryRate}%</span>
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <XCircle size={16} className="text-red-500" />
+            <span className="text-sm text-gray-600">
+              نسبة الإلغاء/الرفض: <span className="font-bold text-red-600">{cancelRate}%</span>
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* أكثر التجار نشاطاً */}
+      {/* ─── أكثر التجار نشاطاً ─── */}
       {topMerchants.length > 0 && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
           <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2 justify-end">
@@ -406,13 +560,19 @@ export default function Home() {
             const colors = [COLORS.primary, COLORS.secondary, COLORS.purple, COLORS.success, COLORS.info];
             return (
               <div key={i} className="flex items-center gap-4 mb-3">
-                <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold" style={{ backgroundColor: colors[i] + '20', color: colors[i] }}>
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
+                  style={{ backgroundColor: colors[i] + '20', color: colors[i] }}
+                >
                   #{i + 1}
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-bold text-gray-800 text-right">{m.name}</p>
                   <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full rounded-full" style={{ width: `${(m.count / maxMerchantCount) * 100}%`, backgroundColor: colors[i] }} />
+                    <div
+                      className="h-full rounded-full"
+                      style={{ width: `${(m.count / maxMerchantCount) * 100}%`, backgroundColor: colors[i] }}
+                    />
                   </div>
                 </div>
                 <div className="text-right">
@@ -425,7 +585,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* إحصائيات المنتجات */}
+      {/* ─── إحصائيات المنتجات ─── */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
         {productStats.map((stat) => (
           <KpiCard
@@ -439,7 +599,7 @@ export default function Home() {
         ))}
       </div>
 
-      {/* قيمة المخزون والربح المحتمل */}
+      {/* ─── قيمة المخزون والربح المحتمل ─── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
           <div className="flex items-center justify-between flex-row-reverse">
@@ -448,7 +608,7 @@ export default function Home() {
             </div>
             <div className="text-right">
               <p className="text-2xl font-black text-gray-800">{fmt(totalStockValue)} د.ع</p>
-              <p className="text-sm text-gray-500">قيمة المخزون (بسعر الشركة)</p>
+              <p className="text-sm text-gray-500">قيمة المخزون (تكلفة الشركة)</p>
             </div>
           </div>
         </div>
@@ -459,13 +619,13 @@ export default function Home() {
             </div>
             <div className="text-right">
               <p className="text-2xl font-black text-gray-800">{fmt(potentialProfit)} د.ع</p>
-              <p className="text-sm text-gray-500">الربح المحتمل (لو بيع كله)</p>
+              <p className="text-sm text-gray-500">الربح المحتمل (بسعر البيع المقترح)</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* أكثر المنتجات مبيعاً */}
+      {/* ─── أكثر المنتجات مبيعاً ─── */}
       {topProducts.length > 0 && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
           <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2 justify-end">
@@ -488,19 +648,25 @@ export default function Home() {
         </div>
       )}
 
-      {/* إحصائيات التجار */}
+      {/* ─── إحصائيات التجار ─── */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
         <KpiCard icon={Users} label="إجمالي التجار" value={merchants.length} color={COLORS.purple} bg="bg-purple-50" />
-        <KpiCard icon={Store} label="جدد هذا الشهر" value={merchants.filter((u: any) => {
-          const d = new Date(u.createdAt);
-          const now = new Date();
-          return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-        }).length} color={COLORS.secondary} bg="bg-amber-50" />
+        <KpiCard
+          icon={Store}
+          label="جدد هذا الشهر"
+          value={merchants.filter((u: any) => {
+            const d = new Date(u.createdAt);
+            const now = new Date();
+            return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+          }).length}
+          color={COLORS.secondary}
+          bg="bg-amber-50"
+        />
         <KpiCard icon={Wallet} label="إجمالي الأرصدة" value={`${fmt(totalBalances)} د.ع`} color={COLORS.success} bg="bg-green-50" />
         <KpiCard icon={Clock} label="أرصدة معلقة" value={`${fmt(totalPendingBalances)} د.ع`} color={COLORS.warning} bg="bg-amber-50" />
       </div>
 
-      {/* إحصائيات السحوبات */}
+      {/* ─── إحصائيات السحوبات ─── */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2 justify-end">
           <CreditCard size={20} className="text-amber-500" />
